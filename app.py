@@ -22,7 +22,7 @@ app.add_middleware(
 	allow_headers = ["*"],
 )
 
-model_path = "phi-2.Q4_K_M.gguf"
+model_path = "models/phi-2.Q4_K_M.gguf"
 llm = Llama(
     model_path=model_path,
     n_ctx=2048,        
