@@ -10,12 +10,12 @@ function Home(){
 		const url = `https://github.com/login/oauth/access_token?`
 		console.log("code, state", githubCode, state)
 		async function fetchData(){
-			await fetch(`http://34.203.40.83:8000/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`, {
+			await fetch(`http://3.83.88.85:8000/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`, {
 				method: "GET"
 			}).then(async (response)=>{
 				const data = await response.json()
 				console.log(data)
-				await fetch(`http://34.203.40.83:8000/events?code=${data.access_token}`, {
+				await fetch(`http://3.83.88.85:8000/events?code=${data.access_token}`, {
 					method: "GET",
 				}).then(async(response)=>{
 					const data = await response.json();
