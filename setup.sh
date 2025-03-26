@@ -16,6 +16,7 @@ if [ -d "$VENV_NAME" ]; then
 fi
 
 # Create virtual environment
+wget https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_K_M.gguf
 print_step "Creating virtual environment..."
 python3 -m venv "$VENV_NAME"
 
