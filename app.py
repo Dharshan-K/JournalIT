@@ -9,8 +9,9 @@ import httpx
 import base64
 from datetime import datetime
 import pymongo
-from pymongo.errors import ConnectionFailure
 import bcrypt
+from datetime import timedelta, datetime
+import google.generativeai as genai
 
 load_dotenv()
 
@@ -31,22 +32,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+
 # models = {
 #     "gemini-2.5-pro-preview-03-25":"gemini-2.5-pro-preview-03-25",
 #     "gemini-2.0-flash-thinking-exp-01-21":"gemini-2.0-flash-thinking-exp-01-21",
 #     "gemini-2.0-flash-lite-001",
 #     "gemini-1.5-flash-001"
 # }
-
-# @app.on_event("startup")
-# async def checkConnection():
-#     print("checking connection")
-#     try:
-#         client.admin.command('ping')
-#         print("MongoDB connected")
-#     except ConnectionFailure as e:
-#         print("MongoDB connection failed")
-
 
 @app.get("/")
 def run_root():
@@ -124,53 +117,76 @@ async def getCommits(code: str):
         try:
             response = await client.get(url, headers=headers)
             response.raise_for_status() 
-            answer = constructJSON(response.json())
+            # print("response", response.json())
+            answer = constructJSON(response.json(),code)
+            print("prompt", answer)
             results = []
-            for repo, events in answer.items():
-                if(repo == "Dharshan-K/JournalIT"):
-                    summary, tree, content = await ingest_async(f"https://github.com/{repo}", exclude_patterns=excludeFiles)
-                    model = getModel(summary)
-                    print("model used", model)
-                    prompt = f"""
-                    You are an AI assistant tasked with generating a journal based on GitHub events. 
+            prompt = f"""
+                Generate a developer’s work log that connects code changes to tangible outcomes. For each entry, specify:
 
-                    Repository Name: {repo}
+                Action Taken (What the developer did—e.g., ‘Added API endpoint’, ‘Connected DB to service’).
 
-                    Repository Structure:
-                    {tree}
+                Purpose/Problem Solved (Why it was needed—e.g., ‘To enable mobile app payments’, ‘To fix login failures’).
 
-                    Repository Content:
-                    {content}
+                Technical Implementation (Key code/files changed with snippets).
 
-                    Below are the GitHub events related to this repository:
-                    {events}
+                Result (Observable impact—e.g., ‘API now processes 500 RPM’, ‘DB latency reduced by 30%’).
+                {answer}
+            """
+            headers1 = {"Content-Type": "application/json"}
+            data = {"contents": [{"parts": [{"text": prompt}]}]}
 
-                    Generate a journal entry summarizing these events in a structured and informative manner.
-                    """
-                    headers1 = {"Content-Type": "application/json"}
-                    data = {"contents": [{"parts": [{"text": prompt}]}]}
-
-                    # response1 = await client.post(
-                    #     f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=AIzaSyCO5sM2nDSKZnDlT6QkGQSk5qMOFamE5u8",
-                    #     headers=headers1,
-                    #     json=data
-                    # )
-                    # results.append(response1.json())
-            return results
-
+            response1 = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyCVXpdGdzBp8zFnoNfP_Ja_yPIH4l4GaaE",
+                headers=headers1,
+                json=data,
+                timeout=30.0
+            ) 
+            return response1.json()
         except httpx.HTTPStatusError as e:
             raise HTTPException(status_code=400, detail=f"API request failed: {str(e)}")
 
 
-def constructJSON(payload):
+def constructJSON(payload,code):
     categorized_data = defaultdict(lambda: defaultdict(list))
+    current_time = datetime.now()
+    last_updated = datetime.now() - timedelta(hours=24)
     
     for event in payload:
+        event_time = datetime.strptime(event["created_at"], "%Y-%m-%dT%H:%M:%SZ")
+        # if(event_time >= last_updated):
         repo_name = event["repo"]["name"]
         event_type = event["type"]
-        categorized_data[repo_name][event_type].append(event)
-    
-    print("events data", categorized_data["antiwork/gumroad"])
+        commit_url = ""
+        if(event_type=="PushEvent"):
+            commitPrompt = ""
+            for commit in event["payload"]["commits"]:
+                url = f"https://api.github.com/repos/{event['repo']['name']}/commits/{commit['sha']}"
+                headers = {
+                    "Authorization": f"Bearer {code}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/vnd.github+json"
+                }
+                print("commitURL", url)
+                response = requests.get(url,headers=headers)
+                result = response.json()
+                prompt = f"""
+                message: {commit["message"]}
+                """
+                for file in result['files']:
+                    patch = file.get("patch")
+                    if patch:
+                        filePrompt = f""" 
+                        filename:{file["filename"]}
+                        code:
+                        {patch}
+                        """
+                        prompt = prompt + filePrompt
+
+                commitPrompt = prompt
+                categorized_data[repo_name][event_type].append(commitPrompt)
+        else:
+            categorized_data[repo_name][event_type].append(event)
     return categorized_data
 
 async def createHtml(fileContent, repoName, repoOwner, gitHubToken):
@@ -209,42 +225,13 @@ def getModel(tokenLimit):
         tokens = float(result["Estimated tokens"][:-1])
         print("tokenCount", tokens)    
     tokens = float(result["Estimated tokens"][:-1]) * 1000
-    print(tokens)
+    print("gitingestTokens",tokens)
     model = ""
     if(tokens>1000000):
         model = "gemini-2.0-flash-thinking-exp-01-21"
     elif(tokens<500000):
         model = "gemini-1.5-flash-001"
     else:
-        model = "gemini-2.0-flash"    
+        model = "gemini-2.0-flash"  
     return model
-
-# def verifyRepoStatus(repoOwner):
-
-
-# def updateIndex(repoName, repoOwner, gitHubToken, currentTime, user, userEmail):    
-#     url = f"https://api.github.com/repos/{repoOwner}/{repoName}/contents/index.html"
-#     fileUrl = f"https://api.github.com/repos/{repoOwner}/{repoName}/contents/index.html"
-#     headers = {
-#     "Authorization": f"Bearer {gitHubToken}",
-#     "Accept": "application/vnd.github+json"
-#     }
-#     indexFile = requests.get(url, headers=headers)
-
-#     data={
-#         "message" : f"Add journal for {currentTime}",
-#         "committer" : {"name" : user, "email" : userEmail},
-#         "content" : {"message":f"updated to add {currentTime} entry","committer":{"name":user,"email":userEmail},"content":"bXkgdXBkYXRlZCBmaWxlIGNvbnRlbnRz","sha":"95b966ae1c166bd92f8ae7d1c313e738c731dfc3"}
-#     }   
-
-#     return 0
-
-# def contructIndexFile(gitHubToken, repoOwner, repoName):
-#     fileUrl = f"https://api.github.com/repos/{repoOwner}/{repoName}/contents/index.html"
-#     headers = {
-#     "Authorization": f"Bearer {gitHubToken}",
-#     "Accept": "application/vnd.github+json"
-#     }
-#     indexFile = requests.get(fileUrl, headers=headers)
-
 

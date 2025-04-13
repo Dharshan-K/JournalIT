@@ -66,7 +66,9 @@ function Home() {
     });
 
     const data = await response.json();
-    const promtOutput = data[0].candidates[0].content.parts[0].text;
+    console.log("data", data);
+    console.log("data", data.candidates[0].content.parts[0].text);
+    const promtOutput = data.candidates[0].content.parts[0].text;
     const journalText = promtOutput || "No journal data found."; // Assume `journal` key or fallback
     const text = removeMarkdown(journalText);
 
