@@ -30,8 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-
 # models = {
 #     "gemini-2.5-pro-preview-03-25":"gemini-2.5-pro-preview-03-25",
 #     "gemini-2.0-flash-thinking-exp-01-21":"gemini-2.0-flash-thinking-exp-01-21",
