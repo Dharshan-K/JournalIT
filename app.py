@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from gitingest import ingest_async
 import requests
 from dotenv import load_dotenv
 from collections import defaultdict
@@ -11,7 +10,6 @@ from datetime import datetime
 import pymongo
 import bcrypt
 from datetime import timedelta, datetime
-import google.generativeai as genai
 
 load_dotenv()
 
