@@ -16,7 +16,9 @@ load_dotenv()
 app = FastAPI()
 
 origins = [
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "https://journal-it-eight.vercel.app"
+
 ]
 client = pymongo.MongoClient(os.getenv('MONGODB_URL'))
 userdb = client['UserData']

@@ -18,7 +18,7 @@ function Home() {
 
       console.log("fetching token");
       const tokenResponse = await fetch(
-        `http://127.0.0.1:8000/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`
+        `https://journalit-backend.onrender.com/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`
       );
 
       const tokenData = await tokenResponse.json();
@@ -61,9 +61,12 @@ function Home() {
     // }
     let userToken = localStorage.getItem("token");
 
-    const response = await fetch(`http://127.0.0.1:8000/events?code=${token}`, {
-      method: "GET",
-    });
+    const response = await fetch(
+      `https://journalit-backend.onrender.com/events?code=${token}`,
+      {
+        method: "GET",
+      }
+    );
 
     const data = await response.json();
     console.log("data", data);
