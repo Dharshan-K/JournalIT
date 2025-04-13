@@ -137,7 +137,7 @@ async def getCommits(code: str):
             data = {"contents": [{"parts": [{"text": prompt}]}]}
 
             response1 = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyCVXpdGdzBp8zFnoNfP_Ja_yPIH4l4GaaE",
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={os.getenv('GEMINI_API_KEY')}",
                 headers=headers1,
                 json=data,
                 timeout=30.0
