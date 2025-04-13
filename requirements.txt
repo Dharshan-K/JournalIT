@@ -90,7 +90,6 @@ MarkupSafe==2.1.5
 mdurl==0.1.2
 orjson==3.10.15
 packaging==24.2
-pkg_resources==0.0.0
 proto-plus==1.26.1
 protobuf==4.25.6
 pyasn1==0.6.1
