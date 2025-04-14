@@ -31,7 +31,7 @@ function SignIn() {
       sessionStorage.setItem("repoName", response.body.repoName);
       sessionStorage.setItem("lastUpdated", response.body.lastUpdated);
       window.location.href =
-        "https://github.com/login/oauth/authorize?client_id=Iv23liiO4Kvnleoqb6nD&redirect_uri=https://journal-it-eight.vercel.app/callback&scope=user&state=random_string&scope=public_repo";
+        "https://github.com/login/oauth/authorize?client_id=Iv23liiO4Kvnleoqb6nD&redirect_uri=https://j-it.netlify.app//callback&scope=user&state=random_string&scope=public_repo";
     } else {
       console.log(response.body);
       alert(response);
