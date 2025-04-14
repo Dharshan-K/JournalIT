@@ -7,12 +7,11 @@ function Home() {
   const [token, setToken] = useState("");
   const [journal, setJournal] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const query = new URLSearchParams(window.location.search);
+  const githubCode = query.get("code");
+  const state = query.get("state");
 
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const githubCode = query.get("code");
-    const state = query.get("state");
-
     async function getToken() {
       if (!githubCode || !state) return;
 
