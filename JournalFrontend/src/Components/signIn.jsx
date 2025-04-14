@@ -18,7 +18,7 @@ function SignIn() {
     const endpoint = isSignUp ? "signUp" : "login";
 
     const response = await fetch(
-      `https://journal-it-eight.vercel.app/${endpoint}`,
+      `https://journalit-backend.onrender.com${endpoint}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

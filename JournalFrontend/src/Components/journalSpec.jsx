@@ -21,7 +21,7 @@ function JournalSpecifications() {
     console.log("code, state", githubCode, state);
     async function fetchData() {
       await fetch(
-        `https://journal-it-eight.vercel.app/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`,
+        `https://journalit-backend.onrender.comgetUserAccessToken?code=${githubCode}&state=${state}&scope=repo`,
         {
           method: "GET",
         }
