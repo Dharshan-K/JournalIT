@@ -7,17 +7,17 @@ function Home() {
   const [token, setToken] = useState("");
   const [journal, setJournal] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const query = new URLSearchParams(window.location.search);
-  const githubCode = query.get("code");
-  const state = query.get("state");
+  // const query = new URLSearchParams(window.location.search);
+  // const githubCode = query.get("code");
+  // const state = query.get("state");
 
   useEffect(() => {
     async function getToken() {
-      if (!githubCode || !state) return;
-
       console.log("fetching token");
       const tokenResponse = await fetch(
-        `https://journalit-backend.onrender.com/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`
+        `http://127.0.0.1:8000/getUserAccessToken?code=${localStorage.getItem(
+          "github_code"
+        )}&state=${localStorage.getItem("github_state")}&scope=repo`
       );
 
       const tokenData = await tokenResponse.json();
@@ -60,12 +60,9 @@ function Home() {
     // }
     let userToken = localStorage.getItem("token");
 
-    const response = await fetch(
-      `https://journalit-backend.onrender.com/events?code=${token}`,
-      {
-        method: "GET",
-      }
-    );
+    const response = await fetch(`http://127.0.0.1:8000/events?code=${token}`, {
+      method: "GET",
+    });
 
     const data = await response.json();
     console.log("data", data);
