@@ -15,7 +15,7 @@ function Home() {
     async function getToken() {
       console.log("fetching token");
       const tokenResponse = await fetch(
-        `http://127.0.0.1:8000/getUserAccessToken?code=${localStorage.getItem(
+        `https://journal-it-eight.vercel.app/getUserAccessToken?code=${localStorage.getItem(
           "github_code"
         )}&state=${localStorage.getItem("github_state")}&scope=repo`
       );
@@ -60,9 +60,12 @@ function Home() {
     // }
     let userToken = localStorage.getItem("token");
 
-    const response = await fetch(`http://127.0.0.1:8000/events?code=${token}`, {
-      method: "GET",
-    });
+    const response = await fetch(
+      `https://journal-it-eight.vercel.app/events?code=${token}`,
+      {
+        method: "GET",
+      }
+    );
 
     const data = await response.json();
     console.log("data", data);

@@ -21,7 +21,7 @@ function JournalSpecifications() {
     console.log("code, state", githubCode, state);
     async function fetchData() {
       await fetch(
-        `http://127.0.0.1:8000/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`,
+        `https://journal-it-eight.vercel.app/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`,
         {
           method: "GET",
         }
