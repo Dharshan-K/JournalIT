@@ -21,7 +21,7 @@ function JournalSpecifications() {
     console.log("code, state", githubCode, state);
     async function fetchData() {
       await fetch(
-        `https://journalit-backend.onrender.comgetUserAccessToken?code=${githubCode}&state=${state}&scope=repo`,
+        `https://journalit-backend.onrender.com/getUserAccessToken?code=${githubCode}&state=${state}&scope=repo`,
         {
           method: "GET",
         }

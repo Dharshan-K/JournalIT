@@ -15,7 +15,7 @@ function Home() {
     async function getToken() {
       console.log("fetching token");
       const tokenResponse = await fetch(
-        `https://journalit-backend.onrender.comgetUserAccessToken?code=${localStorage.getItem(
+        `https://journalit-backend.onrender.com/getUserAccessToken?code=${localStorage.getItem(
           "github_code"
         )}&state=${localStorage.getItem("github_state")}&scope=repo`
       );
@@ -61,7 +61,7 @@ function Home() {
     let userToken = localStorage.getItem("token");
 
     const response = await fetch(
-      `https://journalit-backend.onrender.comevents?code=${token}`,
+      `https://journalit-backend.onrender.com/events?code=${token}`,
       {
         method: "GET",
       }
