@@ -17,8 +17,8 @@ app = FastAPI()
 
 origins = [
     "http://localhost:5173",
-    "https://journal-it-eight.vercel.app"
-
+    "https://journal-it-eight.vercel.app",
+    "https://journalit-1.onrender.com"
 ]
 client = pymongo.MongoClient(os.getenv('MONGODB_URL'))
 userdb = client['UserData']
