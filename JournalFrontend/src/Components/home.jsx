@@ -4,12 +4,11 @@ import "./home.css";
 
 function Home() {
   const [username, setUsername] = useState("");
+  const [reponame, setReponame] = useState("");
+  const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [journal, setJournal] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  // const query = new URLSearchParams(window.location.search);
-  // const githubCode = query.get("code");
-  // const state = query.get("state");
 
   useEffect(() => {
     async function getToken() {
@@ -21,13 +20,12 @@ function Home() {
       );
 
       const tokenData = await tokenResponse.json();
-      console.log("tokenData", tokenData);
       const accessToken = tokenData.access_token;
       localStorage.setItem("token", accessToken);
-      setToken(accessToken); // triggers the second useEffect
+      setToken(accessToken);
     }
 
-    getToken(); // run once
+    getToken();
   }, []);
 
   useEffect(() => {
@@ -49,15 +47,16 @@ function Home() {
       const userData = await userResponse.json();
       console.log("user", userData);
       setUsername(userData.login);
+      setEmail(userData.email);
     }
 
-    fetchData(); // run only when token is ready
+    fetchData();
   }, [token]);
   async function handleGenerateJournal() {
-    // if (!token) {
-    //   console.log("token not available", localStorage.g);
-    //   return;
-    // }
+    if (!token) {
+      console.log("token not available");
+      return;
+    }
     let userToken = localStorage.getItem("token");
 
     const response = await fetch(
@@ -68,8 +67,6 @@ function Home() {
     );
 
     const data = await response.json();
-    console.log("data", data);
-    console.log("data", data.candidates[0].content.parts[0].text);
     const promtOutput = data.candidates[0].content.parts[0].text;
     const journalText = promtOutput || "No journal data found."; // Assume `journal` key or fallback
     const text = removeMarkdown(journalText);
@@ -90,7 +87,40 @@ function Home() {
         clearInterval(interval);
         setIsTyping(false);
       }
-    }, 100); // Typing speed per line
+    }, 100);
+  }
+
+  async function handlePushToGitHub() {
+    const userToken = localStorage.getItem("token");
+
+    try {
+      console.log("token", token);
+      const response = await fetch("http://127.0.0.1:8000/commitJournal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          journal: journal,
+          userName: username,
+          token: token,
+          email: email,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = response.json();
+        console.log(message.message);
+        throw new Error("Failed to commit journal");
+      }
+
+      const data = await response.json();
+      console.log("Journal pushed to GitHub successfully!");
+      console.log(data);
+    } catch (error) {
+      console.error(error);
+      console.log("Failed to push journal.");
+    }
   }
 
   return (
@@ -107,12 +137,19 @@ function Home() {
           {isTyping ? "Generating..." : "Generate Journal"}
         </button>
       )}
-      <textarea
-        className="journal-box"
-        value={journal}
-        readOnly
-        placeholder="Your generated journal will appear here..."
-      />
+      <div className="journal-container">
+        <textarea
+          className="journal-box"
+          value={journal}
+          readOnly
+          placeholder="Your generated journal will appear here..."
+        />
+        {journal && (
+          <button className="push-btn" onClick={handlePushToGitHub}>
+            Push to GitHub
+          </button>
+        )}
+      </div>
     </div>
   );
 }

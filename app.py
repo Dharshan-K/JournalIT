@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ from datetime import datetime
 import pymongo
 import bcrypt
 from datetime import timedelta, datetime
+import json
 
 load_dotenv()
 
@@ -17,8 +19,6 @@ app = FastAPI()
 
 origins = [
     "http://localhost:5173",
-    "https://journal-it-eight.vercel.app",
-    "https://journalit-1.onrender.com",
     "https://j-it.netlify.app"
 ]
 client = pymongo.MongoClient(os.getenv('MONGODB_URL'))
@@ -39,7 +39,6 @@ app.add_middleware(
 #     "gemini-2.0-flash-lite-001",
 #     "gemini-1.5-flash-001"
 # }
-
 @app.get("/")
 def run_root():
     return {"message": "hello from FastAPI"}
@@ -47,8 +46,7 @@ def run_root():
 @app.post("/signUp")
 async def userSignIn(userData: Request):
     body = await userData.json()
-    print(body)
-    password = body['password']
+    password = body['password']    
     user = user_collection.find_one({"userName" :body['userName']})
     if user:
         print("User already exist")
@@ -56,13 +54,12 @@ async def userSignIn(userData: Request):
         raise HTTPException(status_code=404, detail="User already exist")
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    user_collection.insert_one({"userName":body['userName'], "repoName":body['repoName'], "lastUpdated": None, "password":hashed.decode('utf-8')})    
+    user_collection.insert_one({"userName":body['userName'], "lastUpdated": None, "password":hashed.decode('utf-8')})    
     verifyUser = user_collection.find_one({"userName" :body['userName']})
     if not verifyUser:
         print("Sign In failed")
         return {"message" : "Sign In failed"}
         raise HTTPException(status_code=404, detail="Failed to signUp")
-    print("Sign In successfull")
     return "Sign In successfull"
 
 @app.post("/login")
@@ -81,17 +78,16 @@ async def userLogin(userData: Request):
     return {
         "message": "login successfull",
         "userName": user["userName"],
-        "repoName" : user["repoName"],
         "lastUpdated": user["lastUpdated"]
     }
 
 @app.get("/getUserAccessToken")
 def getUserAccessToken(code: str, state: str):
+    print("code",code)
     payload = {
-        "client_id": os.getenv('GITHUB_CLIENT_APP_ID'),
-        "client_secret": os.getenv('GITHUB_CLIENT_APP_SECRET'),
-        "code": code,
-        "scope": "public_repo"
+        "client_id": os.getenv('GITHUB_CLIENT_ID'),
+        "client_secret": os.getenv('GITHUB_CLIENT_SECRET'),
+        "code": code
     }
     url = "https://github.com/login/oauth/access_token"
     headers = {
@@ -99,12 +95,12 @@ def getUserAccessToken(code: str, state: str):
         "Content-Type": "application/json"
     }
     response = requests.post(url, headers=headers, json=payload)
+    print(response.json())
     return response.json()
 
 @app.get("/events")
 async def getCommits(code: str):
     print("code",code)
-    excludeFiles = "*.csv, *.xlsx, *.json, *.log, *.tmp, *.cache, *.lock, *.bin, *.exe, *.dll, *.so, *.a, *.pyc, *.class, *.o, *.env, *.env*.example, *.gitignore, package-lock.json, yarn.lock, Pipfile.lock, *.min.js, *.min.css, *.md, *.pdf, *.docx, *.ppt, *.png, *.jpg, *.svg, .vscode/, .idea/, .DS_Store, *.swp, *.swo, *.spec.js, *_test.py, __snapshots__/, debug.log, coverage/"
     url = "https://api.github.com/users/Dharshan-K/events"
     headers = {
         "Authorization": f"Bearer {code}",
@@ -116,10 +112,7 @@ async def getCommits(code: str):
         try:
             response = await client.get(url, headers=headers)
             response.raise_for_status() 
-            # print("response", response.json())
             answer = constructJSON(response.json(),code)
-            print("prompt", answer)
-            results = []
             prompt = f"""
                 Generate a developer’s work log that connects code changes to tangible outcomes. For each entry, specify:
 
@@ -130,6 +123,7 @@ async def getCommits(code: str):
                 Technical Implementation (Key code/files changed with snippets).
 
                 Result (Observable impact—e.g., ‘API now processes 500 RPM’, ‘DB latency reduced by 30%’).
+                
                 {answer}
             """
             headers1 = {"Content-Type": "application/json"}
@@ -139,7 +133,7 @@ async def getCommits(code: str):
                 f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={os.getenv('GEMINI_API_KEY')}",
                 headers=headers1,
                 json=data,
-                timeout=30.0
+                timeout=60.0
             ) 
             return response1.json()
         except httpx.HTTPStatusError as e:
@@ -202,7 +196,6 @@ async def createHtml(fileContent, repoName, repoOwner, gitHubToken):
         "content": base64Content,
         "branch": "main"
     }
-
     response = requests.post(url, headers=headers, json=data)
     return response.json()
 
@@ -216,15 +209,11 @@ def getModel(tokenLimit):
         result[key.strip()] = value.strip()
     if(result["Estimated tokens"][-1] == "M"):
         tokens = float(result["Estimated tokens"][:-1]) * 1000000
-        print("tokenCount", tokens)
     elif(result["Estimated tokens"][-1] == "k"):
         tokens = float(result["Estimated tokens"][:-1]) * 1000
-        print("tokenCount", tokens)
     else:
         tokens = float(result["Estimated tokens"][:-1])
-        print("tokenCount", tokens)    
     tokens = float(result["Estimated tokens"][:-1]) * 1000
-    print("gitingestTokens",tokens)
     model = ""
     if(tokens>1000000):
         model = "gemini-2.0-flash-thinking-exp-01-21"
@@ -234,3 +223,190 @@ def getModel(tokenLimit):
         model = "gemini-2.0-flash"  
     return model
 
+@app.post("/commitJournal")
+async def commitJournal(journalData: Request):
+    body = await journalData.json()
+    repoStatus = checkRepo(body['userName'], f"{body['userName']}-Journal", body["token"])
+    repoName = body['userName'] + "-Journal"
+    headers = {
+        "Authorization": f"Bearer {body['token']}",
+        "Accept": "application/vnd.github+json"
+    }
+    fileName = datetime.now().strftime("%d-%m-%Y") + ".html"
+    if repoStatus == True:                
+        fileContent = base64.b64encode(body['journal'].encode("utf-8")).decode("utf-8")
+        fileUrl = f"https://api.github.com/repos/{body['userName']}/{repoName}/contents/{fileName}"
+        fileData = {"message":f"{fileName} entry.", "committer":{"name":body['userName'],"email":body['email']},"content":fileContent}
+        fileResponse = requests.put(fileUrl, headers=headers, json=fileData)
+        print("fileResponse",fileResponse.json())
+        constructIndex(body['userName'], f"{body['userName']}-Journal", headers, fileName, body['email'])
+        return fileResponse.json()    
+    else:
+        repoUrl = f"https://api.github.com/user/repos"
+        repoData = {"name":repoName,"description":f"{body['userName']}'s Journal.","private":False}
+        response = requests.post(repoUrl, headers=headers,json=repoData)
+        if response.status_code == 201:
+            entryUrl = f"https://api.github.com/repos/{body['userName']}/{repoName}/contents/entry.json"
+            jsonContent = returnJSON(repoName, body['userName'], body['email'], fileName)
+            entryData = {"message":f"{fileName} entry.", "committer":{"name":body['userName'],"email":body['email']},"content":jsonContent}
+            entryResponse = requests.put(entryUrl, headers=headers, json=entryData)
+            if entryResponse.status_code == 201:
+                indexUrl = f"https://api.github.com/repos/{body['userName']}/{repoName}/contents/index.html"
+                indexContent = returnIndex()
+                indexData = {"message":"Index.html created.", "committer":{"name":body['userName'],"email":body['email']},"content":indexContent}
+                indexResponse = requests.put(indexUrl, headers=headers, json=indexData)
+                if indexResponse.status_code == 201:
+                    fileContent = base64.b64encode(body['journal'].encode("utf-8")).decode("utf-8")
+                    fileUrl = f"https://api.github.com/repos/{body['userName']}/{repoName}/contents/{fileName}"
+                    fileData = {"message":f"{fileName} entry.", "committer":{"name":body['userName'],"email":body['email']},"content":fileContent}
+                    fileResponse = requests.put(fileUrl, headers=headers, json=fileData)
+                    deployGithubResponse = deployGithub(repoName, master, body['userName'], headers)
+                    return deployGithubResponse
+                else:
+                    return {
+                        "message": "index.html file not created",
+                        "response": indexResponse.json()
+                    }
+            else:
+                return {
+                    "message": "Entry.json file not created",
+                    "response": entryResponse.json()
+                }
+        else:
+            return {
+                "message": "Entry.json file not created",
+                "response": response.json()
+            }
+        return {
+            "message":"Your Journal pushed to github.",
+            "status" : "false"
+        }
+
+def constructIndex(userName, repoName,headers,fileName,email):
+    firstLine = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Your Journals</title>
+</head>
+<body>
+<h1>Below are your Journals</h1>
+        """
+    entryUrl = f"https://api.github.com/repos/{userName}/{repoName}/contents/entry.json"
+    response = requests.get(entryUrl, headers=headers)
+    print("EntryResponse", response.json())
+    if(response.status_code != 201):
+        return {
+            "message" : "Error retrieving entry.json",
+            "status" : response.json()
+        }
+    data= response.json()
+    encoded_content = data["content"]
+    decoded_bytes = base64.b64decode(encoded_content)
+    json_content = json.loads(decoded_bytes.decode("utf-8"))
+    print("Entry.json",json_content)
+    json_content["entries"][fileName[:-5]] = fileName
+    json_str = json.dumps(json_content)
+    jsonContent = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
+    entryUpdateUrl = f"https://api.github.com/repos/{userName}/{repoName}/contents/entry.json"
+    entryData = {"message":f"{fileName[:-5]} entry updated.","committer":{"name":userName,"email":email},"content":jsonContent,"sha": data["sha"]}
+    entryUpdateResponse = requests.put(entryUpdateUrl, headers=headers, json=entryData)
+    if(response.status_code != 201):
+        return {
+            "message" : "Error updating entries",
+            "status" : entryUpdateResponse.json()
+        }
+    print("entryUpdateResponse", entryUpdateResponse.json())
+    entryUpdateData = entryUpdateResponse.json()
+    print("entrysha", entryUpdateData['content']['sha'])
+    indexFile = firstLine  + "<ul>\n"
+    entries = json_content["entries"]
+    for key,value in entries.items():
+        value = f"""<li><a href="{fileName}">{key}</a></li>\n"""
+        indexFile = indexFile + value
+    indexFile = indexFile+ "</ul>\n" + "</body>\n</html>"
+    indexFileUrl = f"https://api.github.com/repos/{userName}/{repoName}/contents/index.html"
+    indexFileResponse = requests.get(indexFileUrl, headers=headers)
+    if(response.status_code != 201):
+        return {
+            "message" : "Error retrieving index.html",
+            "status" : indexFileResponse.json()
+        }
+    indexData = indexFileResponse.json()
+    print("indexData", indexData)
+    indexFileSha = indexData['sha']
+    indexUpdateUrl = f"https://api.github.com/repos/{userName}/{repoName}/contents/index.html"
+    indexupdateContent = base64.b64encode(indexFile.encode("utf-8")).decode("utf-8")
+    indexUpdateData = {"message":"index.html updated.","committer":{"name":userName,"email":email},"content":indexupdateContent,"sha": indexFileSha}
+    indexUpdateResponse = requests.put(indexUpdateUrl, headers=headers,json=indexUpdateData)
+    if(response.status_code != 201):
+        return {
+            "message" : "Error updating index.html",
+            "status" : response.json()
+        }
+    print("indexUpdateResponse", indexUpdateResponse.json())
+    return {
+        "message" : "Journal updated.",
+        "response" : indexUpdateResponse.json()
+    }
+
+
+def returnIndex():
+    firstLine = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Your Journals</title>
+</head>
+<body>
+<h1>Below are your Journals</h1>
+</body>
+</html>
+    """
+    indexContent = base64.b64encode(firstLine.encode("utf-8")).decode("utf-8")
+    return indexContent
+
+def returnJSON(repoName, userName, email, fileName):
+    entryJson = {        
+        "repoName": f"{repoName}",
+        "entries": {
+            fileName[:-5] : fileName,
+        },
+        "user": {
+            "username": f"{userName}",
+            "email": f"{email}"
+        }        
+    }
+    json_str = json.dumps(entryJson)
+    jsonContent = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
+    return jsonContent
+
+def checkRepo(userName,repoName, token):
+    print(repoName)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json"
+    }
+    repoUrl = f"https://api.github.com/users/{userName}/repos"
+    response = requests.get(repoUrl, headers=headers)
+    for repo in response.json():
+        print(repo['name'])
+        if repo['name']==repoName:
+            return True
+    return False
+
+def deployGithub(repoName, branch, userName, headers):
+    deployUrl = f"https://api.github.com/repos/{userName}/{repoName}/pages"
+    payload = {"source":{"branch":branch,"path":"/root"}}
+    deployResponse = requests.post(deployUrl, headers=headers, json=payload)
+    if deployResponse.status_code == 201:
+        return {
+            "message" : "Deployed you Journal successfully",
+            "response" : deployResponse.json()
+        }
+    else:
+        return {
+            "message" : "Failed to Deploy",
+            "response" : deployResponse.json()
+        }
