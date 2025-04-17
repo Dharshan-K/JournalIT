@@ -114,7 +114,7 @@ async def getCommits(code: str):
             response.raise_for_status() 
             answer = constructJSON(response.json(),code)
             prompt = f"""
-                Generate a developer’s work log that connects code changes to tangible outcomes. For each entry, specify:
+                Generate a developer’s work Journal that connects code changes to tangible outcomes. For each entry, specify:
 
                 Action Taken (What the developer did—e.g., ‘Added API endpoint’, ‘Connected DB to service’).
 
@@ -124,6 +124,7 @@ async def getCommits(code: str):
 
                 Result (Observable impact—e.g., ‘API now processes 500 RPM’, ‘DB latency reduced by 30%’).
                 
+                The above topics should be listed one by one.
                 {answer}
             """
             headers1 = {"Content-Type": "application/json"}
