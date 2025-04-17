@@ -6,7 +6,6 @@ function SignIn() {
   const [form, setForm] = useState({
     userName: "",
     password: "",
-    repoName: "",
   });
 
   const handleChange = (e) => {
@@ -25,10 +24,9 @@ function SignIn() {
 
     if (response.ok) {
       sessionStorage.setItem("username", response.body.userName);
-      sessionStorage.setItem("repoName", response.body.repoName);
       sessionStorage.setItem("lastUpdated", response.body.lastUpdated);
       window.location.href =
-        "https://github.com/login/oauth/authorize?client_id=Iv23liiO4Kvnleoqb6nD&redirect_uri=http://localhost:5173/callback&scope=user&state=random_string&scope=public_repo";
+        "https://github.com/login/oauth/authorize?client_id=Ov23liYRhS6aIOrQ4ltR&redirect_uri=http://localhost:5173/callback&scope=repo,admin:repo_hook,user";
     } else {
       console.log(response.body);
       alert(response);
@@ -56,16 +54,6 @@ function SignIn() {
             onChange={handleChange}
             required
           />
-          {isSignUp && (
-            <input
-              type="text"
-              name="repoName"
-              placeholder="Repository Name"
-              value={form.repoName}
-              onChange={handleChange}
-              required
-            />
-          )}
           <button type="submit">{isSignUp ? "Sign Up" : "Login"}</button>
         </form>
         <p className="toggle" onClick={() => setIsSignUp(!isSignUp)}>

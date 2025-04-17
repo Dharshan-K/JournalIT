@@ -9,11 +9,11 @@ function CallbackRedirect() {
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const code = query.get("code");
-    const state = query.get("state");
-    console.log("code and state", code, state);
+    // const state = query.get("state");
+    console.log("code and state", code);
 
     localStorage.setItem("github_code", code);
-    localStorage.setItem("github_state", state);
+    // localStorage.setItem("github_state", state);
 
     navigate("/home");
   }, []);
