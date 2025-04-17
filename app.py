@@ -114,18 +114,42 @@ async def getCommits(code: str):
             response.raise_for_status() 
             answer = constructJSON(response.json(),code)
             prompt = f"""
-                Generate a developer’s work Journal that connects code changes to tangible outcomes. For each entry, specify:
+Generate a developer work journal in HTML format that can be deployed on GitHub Pages. The journal should connect code changes (triggered by GitHub events like commits/pull requests) to tangible outcomes. Use this structure for each entry:
 
-                Action Taken (What the developer did—e.g., ‘Added API endpoint’, ‘Connected DB to service’).
+```html
+<div class="journal-entry">
+  <h3 class="entry-date">YYYY-MM-DD</h3>
+  <div class="github-event">
+    <strong>Triggered by:</strong> [GitHub event type - e.g., commit #abc123, PR #42]
+    <br>
+    <strong>Event payload:</strong> [Brief description of what changed in the codebase]
+  </div>
+  
+  <div class="change-details">
+    <div class="action">
+      <h4>Action Taken</h4>
+      <p>[What the developer did]</p>
+    </div>
+    
+    <div class="purpose">
+      <h4>Purpose/Problem Solved</h4>
+      <p>[Why the change was needed]</p>
+    </div>
+    
+    <div class="implementation">
+      <h4>Technical Implementation</h4>
+      <pre><code>[Key code/files changed with relevant snippets]</code></pre>
+    </div>
+    
+    <div class="result">
+      <h4>Result</h4>
+      <p>[Observable impact with metrics if available]</p>
+    </div>
+  </div>
+</div>   
 
-                Purpose/Problem Solved (Why it was needed—e.g., ‘To enable mobile app payments’, ‘To fix login failures’).
-
-                Technical Implementation (Key code/files changed with snippets).
-
-                Result (Observable impact—e.g., ‘API now processes 500 RPM’, ‘DB latency reduced by 30%’).
-                
-                The above topics should be listed one by one.
-                {answer}
+below are the code samples and events from github.
+{answer}
             """
             headers1 = {"Content-Type": "application/json"}
             data = {"contents": [{"parts": [{"text": prompt}]}]}
