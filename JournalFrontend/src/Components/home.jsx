@@ -45,16 +45,19 @@ function Home() {
       });
       const userData = await userResponse.json();
       if (userData.login) {
-        const storeUser = await fetch("http://127.0.0.1:8000/createUser", {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            userName: userData.login,
-            email: userData.email,
-          }),
-        });
+        const storeUser = await fetch(
+          "https://journalit-backend.onrender.com/createUser",
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              userName: userData.login,
+              email: userData.email,
+            }),
+          }
+        );
         console.log("response", storeUser.json());
       }
       console.log("user", userData);
@@ -72,7 +75,7 @@ function Home() {
     let userToken = localStorage.getItem("token");
 
     const response = await fetch(
-      `http://127.0.0.1:8000/events?code=${token}&userName=${username}`,
+      `https://journalit-backend.onrender.com/events?code=${token}&userName=${username}`,
       {
         method: "GET",
       }
@@ -107,18 +110,21 @@ function Home() {
 
     try {
       console.log("token", token);
-      const response = await fetch("http://127.0.0.1:8000/commitJournal", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          journal: journal,
-          userName: username,
-          token: token,
-          email: email,
-        }),
-      });
+      const response = await fetch(
+        "https://journalit-backend.onrender.com/commitJournal",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            journal: journal,
+            userName: username,
+            token: token,
+            email: email,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const message = response.json();

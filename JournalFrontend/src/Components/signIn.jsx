@@ -7,21 +7,27 @@ function SignIn() {
     password: "",
   });
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     window.location.href =
-      "https://github.com/login/oauth/authorize?client_id=Ov23liYRhS6aIOrQ4ltR&redirect_uri=http://localhost:5173/callback&scope=repo,admin:repo_hook,user";
+      "https://github.com/login/oauth/authorize?client_id=Ov23liYRhS6aIOrQ4ltR&redirect_uri=https://j-it.netlify.app/callback&scope=repo,admin:repo_hook,user";
   };
 
   return (
     <div className="container">
-      <button type="button" onClick={handleSubmit}>
-        Login with Github
-      </button>
+      <div className="card">
+        <h1 className="title">Jit</h1>
+        <p className="tagline">
+          Journal-It: Reflect on your code, one commit at a time.
+        </p>
+        <button className="github-button" onClick={handleSubmit}>
+          <img
+            src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+            alt="GitHub Logo"
+          />
+          Login with GitHub
+        </button>
+      </div>
     </div>
   );
 }
