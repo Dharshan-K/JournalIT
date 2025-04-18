@@ -12,6 +12,7 @@ import pymongo
 import bcrypt
 from datetime import timedelta, datetime
 import json
+import time
 
 load_dotenv()
 
@@ -45,7 +46,17 @@ REDIRECT_URI = "http://127.0.0.1:8000/getOauthUserToken"
 def run_root():
     return {"message": "hello from FastAPI"}
 
-
+@app.post("/createUser")
+async def createUser(userData: Request):
+    body = await userData.json()
+    user = user_collection.find_one({"userName" :body['userName']})
+    if user:
+        print("User already exist")
+        return {"message" : "User already exist"}
+        raise HTTPException(status_code=404, detail="User already exist")
+    user_collection.insert_one({"userName":body['userName'], "lastUpdated": None, "email":body['email']})
+    return "User created Successfully"
+ 
 @app.post("/signUp")
 async def userSignIn(userData: Request):
     body = await userData.json()
@@ -103,7 +114,7 @@ def getUserAccessToken(code: str, state: str):
     return response.json()
 
 @app.get("/events")
-async def getCommits(code: str):
+async def getCommits(code: str, userName: str):
     print("code",code)
     url = "https://api.github.com/users/Dharshan-K/events"
     headers = {
@@ -116,19 +127,33 @@ async def getCommits(code: str):
         try:
             response = await client.get(url, headers=headers)
             response.raise_for_status() 
-            answer = constructJSON(response.json(),code)
+            answer = constructJSON(response.json(),code,userName)
             prompt = f"""
-                Generate a developer’s work log that connects code changes to tangible outcomes. For each entry, specify:
+You are an AI assistant that generates a developer journal based on GitHub activity.
 
-                Action Taken (What the developer did—e.g., ‘Added API endpoint’, ‘Connected DB to service’).
+You will be given a list of GitHub events such as commits, pull requests, and issues. For commits, the associated code changes (diffs or full code) will also be provided.
 
-                Purpose/Problem Solved (Why it was needed—e.g., ‘To enable mobile app payments’, ‘To fix login failures’).
+Your task is to generate a Markdown-formatted journal that documents the developer's work clearly and professionally.
 
-                Technical Implementation (Key code/files changed with snippets).
+Instructions:
 
-                Result (Observable impact—e.g., ‘API now processes 500 RPM’, ‘DB latency reduced by 30%’).
-                
-                {answer}
+1. Create a separate section for each event.
+2. Use a descriptive heading for each event.
+3. Include relevant metadata:
+   - For commits: commit message, hash, and date.
+   - For pull requests: PR title, number, branch, and date.
+   - For issues: issue title, number, status (open/closed), and date.
+4. For **commits**, analyze the code and describe what was done (e.g., new feature, bug fix, refactor).
+5. For **pull requests**, summarize the purpose and scope.
+6. For **issues**, explain the problem reported and its significance or resolution.
+7. Group events by date if applicable.
+8. Format the output in Markdown so it can be used directly on a GitHub Pages site.
+9. Write in a tone appropriate for a professional developer journal.
+
+Be clear, concise, and informative.
+
+Below are the events                
+{answer}
             """
             headers1 = {"Content-Type": "application/json"}
             data = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -144,17 +169,18 @@ async def getCommits(code: str):
             raise HTTPException(status_code=400, detail=f"API request failed: {str(e)}")
 
 
-def constructJSON(payload,code):
+def constructJSON(payload,code,userName):
     categorized_data = defaultdict(lambda: defaultdict(list))
-    current_time = datetime.now()
-    last_updated = datetime.now() - timedelta(hours=24)
+    user = user_collection.find_one({"userName" : userName})
     
     for event in payload:
-        event_time = datetime.strptime(event["created_at"], "%Y-%m-%dT%H:%M:%SZ")
-        # if(event_time >= last_updated):
+        eventTime = datetime.strptime(event['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+        epochTime = eventTime.timestamp()
+        if(user['lastUpdated'] and epochTime < user['lastUpdated']):
+            continue
         repo_name = event["repo"]["name"]
         event_type = event["type"]
-        commit_url = ""
+        print("event type", event_type)
         if(event_type=="PushEvent"):
             commitPrompt = ""
             for commit in event["payload"]["commits"]:
@@ -167,9 +193,16 @@ def constructJSON(payload,code):
                 print("commitURL", url)
                 response = requests.get(url,headers=headers)
                 result = response.json()
+                
+                if(response.status_code != 201):
+                    print("response", result)
+                    continue
+                print("response", result)
                 prompt = f"""
-                message: {commit["message"]}
+message: {commit["message"]}
+commit hash: {commit["sha"]}
                 """
+                print(result)
                 for file in result['files']:
                     patch = file.get("patch")
                     if patch:
@@ -182,8 +215,30 @@ def constructJSON(payload,code):
 
                 commitPrompt = prompt
                 categorized_data[repo_name][event_type].append(commitPrompt)
+        elif(event_type == "IssuesEvent"):
+            eventEntry = {
+                "action" : event['payload']['action'],
+                "issue" : {
+                    "number" : event['payload']['issue']['number'],
+                    "title" : event['payload']['issue']['body'],
+                    "body" : event['payload']['issue']['body']
+                }
+            }
+            categorized_data[repo_name][event_type].append(eventEntry)
+            print("event 1",categorized_data[repo_name][event_type])
+        elif(event_type == "PullRequestEvent"):
+            eventEntry = {
+                "action" : event['payload']['action'],
+                "Pull Request" : {
+                    "number" : event['payload']['pull_request']['number'],
+                    "title" : event['payload']['pull_request']['title'],
+                    "body" : event['payload']['pull_request']['body']
+                }
+            }
+            categorized_data[repo_name][event_type].append(eventEntry)
+            print("event 1",categorized_data[repo_name][event_type])
         else:
-            categorized_data[repo_name][event_type].append(event)
+            pass
     return categorized_data
 
 async def createHtml(fileContent, repoName, repoOwner, gitHubToken):
@@ -236,7 +291,7 @@ async def commitJournal(journalData: Request):
         "Authorization": f"Bearer {body['token']}",
         "Accept": "application/vnd.github+json"
     }
-    fileName = datetime.now().strftime("%d-%m-%Y") + ".html"
+    fileName = datetime.now().strftime("%d-%m-%Y") + ".md"
     if repoStatus == True:                
         fileContent = base64.b64encode(body['journal'].encode("utf-8")).decode("utf-8")
         fileUrl = f"https://api.github.com/repos/{body['userName']}/{repoName}/contents/{fileName}"
@@ -256,7 +311,7 @@ async def commitJournal(journalData: Request):
             entryResponse = requests.put(entryUrl, headers=headers, json=entryData)
             if entryResponse.status_code == 201:
                 indexUrl = f"https://api.github.com/repos/{body['userName']}/{repoName}/contents/index.html"
-                indexContent = returnIndex()
+                indexContent = returnIndex(fileName[:-3])
                 indexData = {"message":"Index.html created.", "committer":{"name":body['userName'],"email":body['email']},"content":indexContent}
                 indexResponse = requests.put(indexUrl, headers=headers, json=indexData)
                 if indexResponse.status_code == 201:
@@ -264,6 +319,15 @@ async def commitJournal(journalData: Request):
                     fileUrl = f"https://api.github.com/repos/{body['userName']}/{repoName}/contents/{fileName}"
                     fileData = {"message":f"{fileName} entry.", "committer":{"name":body['userName'],"email":body['email']},"content":fileContent}
                     fileResponse = requests.put(fileUrl, headers=headers, json=fileData)
+                    if fileResponse.status_code == 201:
+                        filter = {"username": body['userName']}
+                        update = {"$set": {"lastUpdated": time.time()}}
+                        user_collection.update_one(filter,update)    
+                    else:
+                        return {
+                            "message": f"{fileName} file not created",
+                            "response": fileResponse.json()
+                        }                    
                 else:
                     return {
                         "message": "index.html file not created",
@@ -308,11 +372,11 @@ def constructIndex(userName, repoName,headers,fileName,email):
     decoded_bytes = base64.b64decode(encoded_content)
     json_content = json.loads(decoded_bytes.decode("utf-8"))
     print("Entry.json",json_content)
-    json_content["entries"][fileName[:-5]] = fileName
+    json_content["entries"][fileName[:-3]] = fileName
     json_str = json.dumps(json_content)
     jsonContent = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
     entryUpdateUrl = f"https://api.github.com/repos/{userName}/{repoName}/contents/entry.json"
-    entryData = {"message":f"{fileName[:-5]} entry updated.","committer":{"name":userName,"email":email},"content":jsonContent,"sha": data["sha"]}
+    entryData = {"message":f"{fileName[:-3]} entry updated.","committer":{"name":userName,"email":email},"content":jsonContent,"sha": data["sha"]}
     entryUpdateResponse = requests.put(entryUpdateUrl, headers=headers, json=entryData)
     if(response.status_code != 201):
         return {
@@ -342,20 +406,22 @@ def constructIndex(userName, repoName,headers,fileName,email):
     indexupdateContent = base64.b64encode(indexFile.encode("utf-8")).decode("utf-8")
     indexUpdateData = {"message":"index.html updated.","committer":{"name":userName,"email":email},"content":indexupdateContent,"sha": indexFileSha}
     indexUpdateResponse = requests.put(indexUpdateUrl, headers=headers,json=indexUpdateData)
-    if(response.status_code != 201):
+    if(indexUpdateResponse.status_code != 201):
         return {
             "message" : "Error updating index.html",
-            "status" : response.json()
+            "status" : indexUpdateResponse.json()
         }
+    filter = {"username": userName}
+    update = {"$set": {"lastUpdated": time.time()}}
+    user_collection.update_one(filter,update)      
     print("indexUpdateResponse", indexUpdateResponse.json())
     return {
         "message" : "Journal updated.",
         "response" : indexUpdateResponse.json()
     }
 
-
-def returnIndex():
-    firstLine = """<!DOCTYPE html>
+def returnIndex(entry):
+    firstLine = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -363,6 +429,9 @@ def returnIndex():
 </head>
 <body>
 <h1>Below are your Journals</h1>
+<ul>
+<li><a href="{entry}.md">{entry}</a></li>
+</ul>
 </body>
 </html>
     """
@@ -373,7 +442,7 @@ def returnJSON(repoName, userName, email, fileName):
     entryJson = {        
         "repoName": f"{repoName}",
         "entries": {
-            fileName[:-5] : fileName,
+            fileName[:-3] : fileName,
         },
         "user": {
             "username": f"{userName}",

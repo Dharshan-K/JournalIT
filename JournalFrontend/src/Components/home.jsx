@@ -47,8 +47,20 @@ function Home() {
           Accept: "application/vnd.github+json",
         },
       });
-
       const userData = await userResponse.json();
+      if (userData.login) {
+        const storeUser = await fetch("http://127.0.0.1:8000/createUser", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            userName: userData.login,
+            email: userData.email,
+          }),
+        });
+        console.log("response", storeUser.json());
+      }
       console.log("user", userData);
       setUsername(userData.login);
       setEmail(userData.email);
@@ -63,9 +75,12 @@ function Home() {
     // }
     let userToken = localStorage.getItem("token");
 
-    const response = await fetch(`http://127.0.0.1:8000/events?code=${token}`, {
-      method: "GET",
-    });
+    const response = await fetch(
+      `http://127.0.0.1:8000/events?code=${token}&userName=${username}`,
+      {
+        method: "GET",
+      }
+    );
 
     const data = await response.json();
     console.log("data", data);

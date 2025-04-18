@@ -14,28 +14,31 @@ function SignIn() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const endpoint = isSignUp ? "signUp" : "login";
+    window.location.href =
+      "https://github.com/login/oauth/authorize?client_id=Ov23liYRhS6aIOrQ4ltR&redirect_uri=http://localhost:5173/callback&scope=repo,admin:repo_hook,user";
 
-    const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    // const endpoint = isSignUp ? "signUp" : "login";
 
-    if (response.ok) {
-      sessionStorage.setItem("username", response.body.userName);
-      sessionStorage.setItem("lastUpdated", response.body.lastUpdated);
-      window.location.href =
-        "https://github.com/login/oauth/authorize?client_id=Ov23liYRhS6aIOrQ4ltR&redirect_uri=http://localhost:5173/callback&scope=repo,admin:repo_hook,user";
-    } else {
-      console.log(response.body);
-      alert(response);
-    }
+    // const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify(form),
+    // });
+
+    // if (response.ok) {
+    //   sessionStorage.setItem("username", response.body.userName);
+    //   sessionStorage.setItem("lastUpdated", response.body.lastUpdated);
+    //   window.location.href =
+    //     "https://github.com/login/oauth/authorize?client_id=Ov23liYRhS6aIOrQ4ltR&redirect_uri=http://localhost:5173/callback&scope=repo,admin:repo_hook,user";
+    // } else {
+    //   console.log(response.body);
+    //   alert(response);
+    // }
   };
 
   return (
     <div className="container">
-      <div className="card">
+      {/* <div className="card">
         <h2>{isSignUp ? "Sign Up" : "Login"}</h2>
         <form onSubmit={handleSubmit}>
           <input
@@ -53,15 +56,15 @@ function SignIn() {
             value={form.password}
             onChange={handleChange}
             required
-          />
-          <button type="submit">{isSignUp ? "Sign Up" : "Login"}</button>
-        </form>
+          /> */}
+      <button onClick={handleSubmit}>Login</button>
+      {/* </form>
         <p className="toggle" onClick={() => setIsSignUp(!isSignUp)}>
           {isSignUp
             ? "Already have an account? Login"
             : "Don't have an account? Sign Up"}
-        </p>
-      </div>
+        </p> */}
+      {/* </div> */}
     </div>
   );
 }
