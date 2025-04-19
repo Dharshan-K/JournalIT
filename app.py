@@ -280,9 +280,9 @@ async def commitJournal(journalData: Request):
                     fileData = {"message":f"{fileName} entry.", "committer":{"name":body['userName'],"email":body['email']},"content":fileContent}
                     fileResponse = requests.put(fileUrl, headers=headers, json=fileData)
                     if fileResponse.status_code == 201:
-                        filter = {"username": body['userName']}
+                        filter = {"userName": body['userName']}
                         update = {"$set": {"lastUpdated": time.time()}}
-                        user_collection.update_one(filter,update)    
+                        user_collection.update_one(filter,update)
                     else:
                         return {
                             "message": f"{fileName} file not created",
@@ -373,7 +373,7 @@ def constructIndex(userName, repoName,headers,fileName,email):
             "message" : "Error updating index.html",
             "status" : indexUpdateResponse.json()
         }
-    filter = {"username": userName}
+    filter = {"userName": userName}
     update = {"$set": {"lastUpdated": time.time()}}
     user_collection.update_one(filter,update)      
     print("indexUpdateResponse", indexUpdateResponse.json())
