@@ -15,7 +15,6 @@ function Home() {
 
   useEffect(() => {
     async function getToken() {
-      console.log("fetching token");
       const tokenResponse = await fetch(
         `https://journalit-backend.onrender.com/getUserAccessToken?code=${localStorage.getItem(
           "github_code"
@@ -34,10 +33,8 @@ function Home() {
   useEffect(() => {
     async function fetchData() {
       if (!token) {
-        console.log("token", token);
         return;
       }
-      console.log("userToken", token);
       const userToken = localStorage.getItem("token");
 
       const userResponse = await fetch("https://api.github.com/user", {
@@ -61,9 +58,7 @@ function Home() {
             }),
           }
         );
-        console.log("response", storeUser.json());
       }
-      console.log("user", userData);
       setUsername(userData.login);
       setEmail(userData.email);
     }
@@ -115,7 +110,6 @@ function Home() {
     setIsPushing(true);
 
     try {
-      console.log("token", token);
       const response = await fetch(
         "https://journalit-backend.onrender.com/commitJournal",
         {
@@ -134,15 +128,11 @@ function Home() {
 
       if (!response.ok) {
         const message = response.json();
-        console.log(message.message);
         throw new Error("Failed to commit journal");
       }
 
       const data = await response.json();
-      console.log("Journal pushed to GitHub successfully!");
-      console.log(data.response["html_url"]);
       const htmlUrl = data.response["html_url"];
-      console.log("Pushed:", htmlUrl);
       setGithubPagesUrl(htmlUrl);
     } catch (error) {
       console.error(error);
