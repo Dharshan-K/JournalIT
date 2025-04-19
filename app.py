@@ -49,49 +49,11 @@ async def createUser(userData: Request):
     body = await userData.json()
     user = user_collection.find_one({"userName" :body['userName']})
     if user:
-        print("User already exist")
-        return {"message" : "User already exist"}
+        print("User already exist")        
         raise HTTPException(status_code=404, detail="User already exist")
     user_collection.insert_one({"userName":body['userName'], "lastUpdated": None, "email":body['email']})
     return "User created Successfully"
  
-@app.post("/signUp")
-async def userSignIn(userData: Request):
-    body = await userData.json()
-    password = body['password']    
-    user = user_collection.find_one({"userName" :body['userName']})
-    if user:
-        print("User already exist")
-        return {"message" : "User already exist"}
-        raise HTTPException(status_code=404, detail="User already exist")
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    user_collection.insert_one({"userName":body['userName'], "lastUpdated": None, "password":hashed.decode('utf-8')})    
-    verifyUser = user_collection.find_one({"userName" :body['userName']})
-    if not verifyUser:
-        print("Sign In failed")
-        return {"message" : "Sign In failed"}
-        raise HTTPException(status_code=404, detail="Failed to signUp")
-    return "Sign In successfull"
-
-@app.post("/login")
-async def userLogin(userData: Request):
-    print("logging in")
-    body = await userData.json()
-    password = body['password']
-    user = user_collection.find_one({"userName" :body['userName']})
-    if not user:
-        print("User not found")
-        raise HTTPException(status_code=404, detail="User not found")    
-    if not bcrypt.checkpw(password.encode('utf-8'), user["password"].encode('utf-8')):
-        print("Password not correct")
-        raise HTTPException(status_code=404, detail="Password not correct")
-    print(user)
-    return {
-        "message": "login successfull",
-        "userName": user["userName"],
-        "lastUpdated": user["lastUpdated"]
-    }
 
 @app.get("/getUserAccessToken")
 def getUserAccessToken(code: str, state: str):
@@ -155,13 +117,13 @@ Below are the events
             headers1 = {"Content-Type": "application/json"}
             data = {"contents": [{"parts": [{"text": prompt}]}]}
 
-            response1 = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={os.getenv('GEMINI_API_KEY')}",
-                headers=headers1,
-                json=data,
-                timeout=60.0
-            ) 
-            return response1.json()
+            # response1 = await client.post(
+            #     f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={os.getenv('GEMINI_API_KEY')}",
+            #     headers=headers1,
+            #     json=data,
+            #     timeout=60.0
+            # ) 
+            return 0
         except httpx.HTTPStatusError as e:
             raise HTTPException(status_code=400, detail=f"API request failed: {str(e)}")
 
@@ -173,7 +135,9 @@ def constructJSON(payload,code,userName):
     for event in payload:
         eventTime = datetime.strptime(event['created_at'], "%Y-%m-%dT%H:%M:%SZ")
         epochTime = eventTime.timestamp()
+        print("eventTime", eventTime, epochTime)
         if(user['lastUpdated'] and epochTime < user['lastUpdated']):
+            print("skipped", event['repo']['name'], event['created_at'])
             continue
         repo_name = event["repo"]["name"]
         event_type = event["type"]
@@ -187,19 +151,18 @@ def constructJSON(payload,code,userName):
                     "Content-Type": "application/json",
                     "Accept": "application/vnd.github+json"
                 }
-                print("commitURL", url)
+                # print("commitURL", url)
                 response = requests.get(url,headers=headers)
                 result = response.json()
                 
-                if(response.status_code != 201):
-                    print("response", result)
+                if(response.status_code != 200):
+                    print(response.status_code)
                     continue
-                print("response", result)
                 prompt = f"""
 message: {commit["message"]}
 commit hash: {commit["sha"]}
                 """
-                print(result)
+                print(result.status_code)
                 for file in result['files']:
                     patch = file.get("patch")
                     if patch:
@@ -236,6 +199,7 @@ commit hash: {commit["sha"]}
             print("event 1",categorized_data[repo_name][event_type])
         else:
             pass
+    print("data", categorized_data)
     return categorized_data
 
 async def createHtml(fileContent, repoName, repoOwner, gitHubToken):
@@ -325,7 +289,7 @@ async def commitJournal(journalData: Request):
                             "message": f"{fileName} file not created",
                             "response": fileResponse.json()
                         }                    
-                    deployGithubResponse = deployGithub(repoName, master, body['userName'], headers)
+                    deployGithubResponse = deployGithub(repoName, "master", body['userName'], headers)
                     return deployGithubResponse
                 else:
                     return {
@@ -468,7 +432,7 @@ def checkRepo(userName,repoName, token):
 
 def deployGithub(repoName, branch, userName, headers):
     deployUrl = f"https://api.github.com/repos/{userName}/{repoName}/pages"
-    payload = {"source":{"branch":branch,"path":"/root"}}
+    payload = {"source":{"branch":branch,"path":"/"}}
     deployResponse = requests.post(deployUrl, headers=headers, json=payload)
     if deployResponse.status_code == 201:
         return {

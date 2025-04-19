@@ -9,6 +9,9 @@ function Home() {
   const [token, setToken] = useState("");
   const [journal, setJournal] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [githubPagesUrl, setGithubPagesUrl] = useState("");
+  const [isPushing, setIsPushing] = useState(false);
 
   useEffect(() => {
     async function getToken() {
@@ -69,10 +72,12 @@ function Home() {
   }, [token]);
   async function handleGenerateJournal() {
     if (!token) {
-      console.log("token not available");
+      alert("github token not available. log in again");
       return;
     }
     let userToken = localStorage.getItem("token");
+    setIsGenerating(true);
+    setIsTyping(true);
 
     const response = await fetch(
       `https://journalit-backend.onrender.com/events?code=${token}&userName=${username}`,
@@ -83,7 +88,7 @@ function Home() {
 
     const data = await response.json();
     const promtOutput = data.candidates[0].content.parts[0].text;
-    const journalText = promtOutput || "No journal data found."; // Assume `journal` key or fallback
+    const journalText = promtOutput || "No journal data found.";
     const text = removeMarkdown(journalText);
 
     typeOutJournal(text);
@@ -107,6 +112,7 @@ function Home() {
 
   async function handlePushToGitHub() {
     const userToken = localStorage.getItem("token");
+    setIsPushing(true);
 
     try {
       console.log("token", token);
@@ -134,10 +140,15 @@ function Home() {
 
       const data = await response.json();
       console.log("Journal pushed to GitHub successfully!");
-      console.log(data);
+      console.log(data.response["html_url"]);
+      const htmlUrl = data.response["html_url"];
+      console.log("Pushed:", htmlUrl);
+      setGithubPagesUrl(htmlUrl);
     } catch (error) {
       console.error(error);
       console.log("Failed to push journal.");
+    } finally {
+      setIsPushing(false);
     }
   }
 
@@ -152,7 +163,7 @@ function Home() {
           onClick={handleGenerateJournal}
           disabled={isTyping}
         >
-          {isTyping ? "Generating..." : "Generate Journal"}
+          {isGenerating && isTyping ? "Generating..." : "Generate Journal"}
         </button>
       )}
       <div className="journal-container">
@@ -163,9 +174,25 @@ function Home() {
           placeholder="Your generated journal will appear here..."
         />
         {journal && (
-          <button className="push-btn" onClick={handlePushToGitHub}>
-            Push to GitHub
-          </button>
+          <div className="button-row">
+            {githubPagesUrl && (
+              <a
+                href={githubPagesUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <button className="visit-btn">Visit GitHub Pages</button>
+              </a>
+            )}
+            <button
+              className="push-btn"
+              onClick={handlePushToGitHub}
+              disabled={isPushing}
+            >
+              {isPushing ? "Pushing..." : "Push to GitHub"}
+              {isPushing && <span className="loader" />}
+            </button>
+          </div>
         )}
       </div>
     </div>
