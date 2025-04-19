@@ -117,13 +117,13 @@ Below are the events
             headers1 = {"Content-Type": "application/json"}
             data = {"contents": [{"parts": [{"text": prompt}]}]}
 
-            # response1 = await client.post(
-            #     f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={os.getenv('GEMINI_API_KEY')}",
-            #     headers=headers1,
-            #     json=data,
-            #     timeout=60.0
-            # ) 
-            return 0
+            response1 = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={os.getenv('GEMINI_API_KEY')}",
+                headers=headers1,
+                json=data,
+                timeout=60.0
+            ) 
+            return response1.json()
         except httpx.HTTPStatusError as e:
             raise HTTPException(status_code=400, detail=f"API request failed: {str(e)}")
 
@@ -162,7 +162,6 @@ def constructJSON(payload,code,userName):
 message: {commit["message"]}
 commit hash: {commit["sha"]}
                 """
-                print(result.status_code)
                 for file in result['files']:
                     patch = file.get("patch")
                     if patch:
