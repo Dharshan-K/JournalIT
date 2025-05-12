@@ -62,7 +62,15 @@ Generate your Journal here - [Jit](https://j-it.netlify.app/)
 
 ## 🧪 Getting Started
 
-> _Add setup instructions here if the project is open-source. For now, you can note that this section is under development or for internal use only._
+```bash
+  Clone the repo
+
+  To run the Frontend
+  npm run dev
+
+  To run the Backend
+  uvicorn app:app --reload
+```
 
 ---
 
