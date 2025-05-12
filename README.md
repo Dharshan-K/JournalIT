@@ -4,6 +4,8 @@
 
 With a single click, developers can turn their daily contributions into structured, insightful journal entries — and publish them as a personal webpage using **GitHub Pages**.
 
+Generate your Journal here - [Jit](https://j-it.netlify.app/)
+
 ---
 
 ## 🚀 Features
